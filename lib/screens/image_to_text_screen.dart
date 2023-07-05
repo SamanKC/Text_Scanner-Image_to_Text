@@ -1,8 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../controllers/image_processing.dart';
 
 class ImageToTextScreen extends StatefulWidget {
   const ImageToTextScreen({super.key});
@@ -16,31 +17,28 @@ class _ImageToTextScreenState extends State<ImageToTextScreen> {
   String _recognizedText = '';
 
   Future<void> _pickImage(ImageSource source) async {
-    final pickedImage = await ImagePicker().pickImage(source: source);
-    setState(() {
-      _pickedImage = File(pickedImage!.path);
-      _recognizedText = '';
-    });
-    _processImage();
+    try {
+      final pickedImage = await ImagePicker().pickImage(source: source);
+      if (pickedImage != null) {
+        setState(() {
+          _pickedImage = File(pickedImage.path);
+          _recognizedText = '';
+        });
+        _processImage();
+      }
+    } catch (e) {
+      setState(() {
+        _recognizedText = 'Error picking image: $e';
+      });
+    }
   }
 
   Future<void> _processImage() async {
-    final inputImage = InputImage.fromFile(_pickedImage!);
-    final textDetector = GoogleMlKit.vision.textRecognizer();
-    final recognizedText = await textDetector.processImage(inputImage);
-    String text = '';
-    for (TextBlock block in recognizedText.blocks) {
-      for (TextLine line in block.lines) {
-        for (TextElement element in line.elements) {
-          text += '${element.text} ';
-        }
-        text += '\n';
-      }
-    }
+    final recognizedText = await ImageProcessing.processImage(_pickedImage!);
+
     setState(() {
-      _recognizedText = text;
+      _recognizedText = recognizedText;
     });
-    textDetector.close();
   }
 
   @override
@@ -70,27 +68,53 @@ class _ImageToTextScreenState extends State<ImageToTextScreen> {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              onPressed: () => _pickImage(ImageSource.gallery),
-              child: const Text('Pick Image'),
-            ),
+          const SizedBox(height: 20.0),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: <Widget>[
+              ElevatedButton.icon(
+                onPressed: () => _pickImage(ImageSource.gallery),
+                icon: const Icon(Icons.photo_library),
+                label: const Text('Pick Image'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12.0,
+                    horizontal: 20.0,
+                  ),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => _pickImage(ImageSource.camera),
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Take Picture'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12.0,
+                    horizontal: 20.0,
+                  ),
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 20.0),
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              onPressed: () => _pickImage(ImageSource.camera),
-              child: const Text('Take Picture'),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              _recognizedText,
-              style: const TextStyle(
-                fontSize: 16.0,
-                fontWeight: FontWeight.bold,
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8.0),
+                color: Colors.grey[200],
+              ),
+              padding: const EdgeInsets.all(16.0),
+              child: SelectableText(
+                _recognizedText,
+                style: const TextStyle(
+                  fontSize: 16.0,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
